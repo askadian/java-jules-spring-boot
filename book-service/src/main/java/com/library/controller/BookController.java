@@ -1,6 +1,8 @@
 package com.library.controller;
 
+import com.library.model.Author;
 import com.library.model.Book;
+import com.library.service.AuthorService;
 import com.library.service.BookService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -15,6 +17,9 @@ public class BookController {
 
     @Autowired
     private BookService bookService;
+
+    @Autowired
+    private AuthorService authorService;
 
     @PostMapping
     public ResponseEntity<Book> createBook(@RequestBody Book book) {
@@ -37,9 +42,6 @@ public class BookController {
             if (bookDetails.getTitle() != null) {
                 existingBook.setTitle(bookDetails.getTitle());
             }
-            if (bookDetails.getAuthor() != null) {
-                existingBook.setAuthor(bookDetails.getAuthor());
-            }
             if (bookDetails.getIsbn() != null) {
                 existingBook.setIsbn(bookDetails.getIsbn());
             }
@@ -57,5 +59,22 @@ public class BookController {
     public ResponseEntity<Void> deleteBook(@PathVariable Long id) {
         bookService.deleteBook(id);
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
+    @PostMapping("/{bookId}/author/{authorId}")
+    public ResponseEntity<Book> addAuthorToBook(@PathVariable Long bookId, @PathVariable Long authorId) {
+        Optional<Book> optionalBook = bookService.getBookById(bookId);
+        Optional<Author> optionalAuthor = authorService.getAuthorById(authorId);
+
+        if (optionalBook.isPresent() && optionalAuthor.isPresent()) {
+            Book book = optionalBook.get();
+            Author author = optionalAuthor.get();
+            book.getAuthors().add(author);
+            author.getBooks().add(book);
+            bookService.saveBook(book);
+            return new ResponseEntity<>(book, HttpStatus.OK);
+        } else {
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+        }
     }
 }
