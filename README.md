@@ -1,18 +1,18 @@
 # Book Service
 
-This is a Spring Boot RESTful microservice for managing a library's book collection. It provides endpoints to create, retrieve, update, and delete books.
+This is a Spring Boot RESTful microservice for managing a library's book collection. It provides endpoints to create, retrieve, update, and delete books and authors.
 
 ## Architecture
 
 The application follows a three-layer architecture:
 
 - **Presentation Layer:** Exposes the RESTful endpoints using Spring Web MVC.
-- **Service Layer:** Contains the business logic for managing books.
+- **Service Layer:** Contains the business logic for managing books and authors.
 - **Data Access Layer:** Handles database operations using Spring Data JPA.
 
 ## Endpoints
 
-The following endpoints are available:
+### Book Endpoints
 
 | Method | Path         | Description              |
 |--------|--------------|--------------------------|
@@ -20,6 +20,15 @@ The following endpoints are available:
 | `POST`   | `/book`      | Creates a new book.      |
 | `PATCH`  | `/book/{id}` | Updates an existing book.|
 | `DELETE` | `/book/{id}` | Deletes a book by its ID.  |
+| `POST`   | `/book/{bookId}/author/{authorId}` | Associates an author with a book. |
+
+### Author Endpoints
+
+| Method | Path         | Description              |
+|--------|--------------|--------------------------|
+| `GET`    | `/author/{id}` | Retrieves an author by their ID. |
+| `POST`   | `/author`      | Creates a new author.      |
+| `DELETE` | `/author/{id}` | Deletes an author by their ID.  |
 
 ## How to Run
 
