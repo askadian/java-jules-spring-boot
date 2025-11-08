@@ -41,7 +41,14 @@ The following endpoints are available:
    - Make sure you have a MySQL database running.
    - Create a database named `library`.
    - The `mysql/books.sql` file contains the DDL for all the tables.
-   - Update the database credentials in `src/main/resources/application.properties`.
+   - Create a file at `src/main/resources/application.properties` with your database credentials. You can use the following template:
+     ```
+     spring.datasource.url=jdbc:mysql://localhost:3306/library
+     spring.datasource.username=YOUR_DB_USERNAME
+     spring.datasource.password=YOUR_DB_PASSWORD
+     spring.jpa.hibernate.ddl-auto=update
+     ```
+     Replace `YOUR_DB_USERNAME` and `YOUR_DB_PASSWORD` with your actual MySQL credentials.
 3. **Run the application:**
    ```bash
    mvn spring-boot:run
