@@ -86,7 +86,7 @@ CREATE TABLE book_order (
     book_id BIGINT,
     user_id BIGINT,
     order_datetime TIMESTAMP,
-    fullfillment_datetime TIMESTAMP,
+    fulfillment_datetime TIMESTAMP,
     status VARCHAR(255),
     create_datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     update_datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
