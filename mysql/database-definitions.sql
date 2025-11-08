@@ -1,3 +1,18 @@
+-- DDL for new tables
+-- Library Table
+CREATE TABLE library_branch (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    library_name VARCHAR(255),
+    address_line1 VARCHAR(255),
+    address_line2 VARCHAR(255),
+    city VARCHAR(255),
+    state VARCHAR(255),
+    zip VARCHAR(255),
+    country VARCHAR(255),
+    create_datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    last_updated_by VARCHAR(255)
+);
 -- Book Table
 CREATE TABLE book (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -8,8 +23,6 @@ CREATE TABLE book (
     update_datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     last_updated_by VARCHAR(255)
 );
-
--- DDL for new tables
 
 -- Author Table
 CREATE TABLE author (
@@ -40,31 +53,16 @@ CREATE TABLE author_book_relationship (
     FOREIGN KEY (author_id) REFERENCES author(id)
 );
 
--- Library Table
-CREATE TABLE library (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    library_name VARCHAR(255),
-    address_line1 VARCHAR(255),
-    address_line2 VARCHAR(255),
-    city VARCHAR(255),
-    state VARCHAR(255),
-    zip VARCHAR(255),
-    country VARCHAR(255),
-    create_datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    update_datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    last_updated_by VARCHAR(255)
-);
-
 -- Library Book Collection Table
 CREATE TABLE library_book_collection (
-    library_id BIGINT,
+    library_branch_id BIGINT,
     book_id BIGINT,
     seq_number INT,
     create_datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     update_datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     last_updated_by VARCHAR(255),
-    PRIMARY KEY (library_id, book_id),
-    FOREIGN KEY (library_id) REFERENCES library(id),
+    PRIMARY KEY (library_branch_id, book_id),
+    FOREIGN KEY (library_branch_id) REFERENCES library_branch(id),
     FOREIGN KEY (book_id) REFERENCES book(id)
 );
 
