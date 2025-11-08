@@ -27,6 +27,7 @@ The following endpoints are available:
 2. **Set up the database:**
    - Make sure you have a MySQL database running.
    - Create a database named `library`.
+   - The `mysql/books.sql` file contains the DDL for all the tables.
    - Update the database credentials in `src/main/resources/application.properties`.
 3. **Run the application:**
    ```bash
