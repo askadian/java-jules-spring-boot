@@ -10,19 +10,6 @@ The application follows a three-layer architecture:
 - **Service Layer:** Contains the business logic for managing books.
 - **Data Access Layer:** Handles database operations using Spring Data JPA.
 
-## Database Schema
-
-The database schema is defined in the `mysql/books.sql` file. It includes the following tables:
-
-- `book`
-- `author`
-- `author_book_relationship`
-- `library`
-- `library_book_collection`
-- `user`
-- `order_status_type`
-- `book_order`
-
 ## Endpoints
 
 The following endpoints are available:
