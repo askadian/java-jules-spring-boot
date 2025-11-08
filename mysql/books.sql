@@ -68,7 +68,10 @@ CREATE TABLE user (
     city VARCHAR(255),
     state VARCHAR(255),
     zip VARCHAR(255),
-    country VARCHAR(255)
+    country VARCHAR(255),
+    create_datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    last_updated_by VARCHAR(255)
 );
 
 -- Order Status Type Table
