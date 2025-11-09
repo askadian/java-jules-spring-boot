@@ -1,6 +1,7 @@
 package com.library.model;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
@@ -12,6 +13,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
+@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 public class Author {
 
     @Id
@@ -31,7 +33,6 @@ public class Author {
     private String lastUpdatedBy;
 
     @ManyToMany(mappedBy = "authors")
-    @JsonBackReference
     private Set<Book> books = new HashSet<>();
 
     public Long getId() {

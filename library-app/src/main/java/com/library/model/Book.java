@@ -1,6 +1,7 @@
 package com.library.model;
 
-import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 
 import javax.persistence.CascadeType;
 import javax.persistence.Entity;
@@ -16,6 +17,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @Entity
+@JsonIdentityInfo(generator = ObjectIdGenerators.PropertyGenerator.class, property = "id")
 public class Book {
 
     @Id
@@ -34,7 +36,6 @@ public class Book {
         joinColumns = @JoinColumn(name = "book_id"),
         inverseJoinColumns = @JoinColumn(name = "author_id")
     )
-    @JsonManagedReference
     private Set<Author> authors = new HashSet<>();
 
     public Long getId() {
