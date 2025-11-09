@@ -36,7 +36,7 @@ public class LibraryController {
                 .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
 
-    @PatchMapping("/{id}")
+    @PatchMapping(value = "/{id}", consumes = "application/json")
     public ResponseEntity<Library> updateLibrary(@PathVariable Long id, @RequestBody Library libraryDetails) {
         Optional<Library> optionalLibrary = libraryService.getLibraryById(id);
         if (optionalLibrary.isPresent()) {

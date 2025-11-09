@@ -73,6 +73,7 @@ The following endpoints are available:
     *   Make sure you have a MySQL database running.
     *   Create a database named `library`.
     *   Run the `mysql/database-definitions.sql` and `mysql/sample-data.sql` scripts.
+    *   Copy the `library-app/src/main/resources/application.properties.template` file to `library-app/src/main/resources/application.properties`.
     *   Update the database credentials in `library-app/src/main/resources/application.properties`.
 3.  **Run the application:**
 
