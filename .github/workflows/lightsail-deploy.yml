@@ -96,7 +96,7 @@ jobs:
           HEALTH_UNHEALTHY_THRESHOLD="${{ github.event.inputs.health_unhealthy_threshold }}"
 
           # Use Python to generate valid JSON safely (avoids heredoc quoting/parsing issues)
-          python3 - <<PY
+          python3 - <<'PY'
 import os, json
 cn = os.environ['CONTAINER_NAME']
 containers = {
@@ -110,7 +110,7 @@ containers = {
     }
 }
 with open('containers.json','w') as f:
-    json.dump(containers, f)
+    json.dump(containers, f, indent=2)
 
 public_endpoint = {
     "containerName": os.environ['CONTAINER_NAME'],
@@ -125,27 +125,27 @@ public_endpoint = {
     }
 }
 with open('public-endpoint.json','w') as f:
-    json.dump(public_endpoint, f)
+    json.dump(public_endpoint, f, indent=2)
 PY
 
       - name: Create service if missing and deploy
         run: |
           set -e
           SERVICE_NAME="${{ github.event.inputs.service_name }}"
-          EXISTING=$(aws lightsail get-container-services --query "containerServices[?serviceName=='${SERVICE_NAME}'] | length(@)" --output text || echo "0")
-          if [ "$EXISTING" = "0" ]; then
-            echo "Creating service ${SERVICE_NAME} (power=${{ github.event.inputs.power }}, scale=${{ github.event.inputs.scale }})"
+          # Use the singular get-container-service call to check existence (more reliable)
+          if aws lightsail get-container-service --service-name "${SERVICE_NAME}" --region "${AWS_REGION}" > /dev/null 2>&1; then
+            echo "Service ${SERVICE_NAME} already exists"
+          else
+            echo "Service ${SERVICE_NAME} doesn't exist. Creating (power=${{ github.event.inputs.power }}, scale=${{ github.event.inputs.scale }})"
             aws lightsail create-container-service --service-name "${SERVICE_NAME}" --power "${{ github.event.inputs.power }}" --scale "${{ github.event.inputs.scale }}"
             # brief wait for propagation
             sleep 10
-          else
-            echo "Service ${SERVICE_NAME} already exists"
           fi
 
           echo "Creating deployment..."
-          aws lightsail create-container-service-deployment --service-name "${SERVICE_NAME}" --containers file://containers.json --public-endpoint file://public-endpoint.json
+          aws lightsail create-container-service-deployment --service-name "${SERVICE_NAME}" --containers file://containers.json --public-endpoint file://public-endpoint.json --region "${AWS_REGION}"
 
       - name: Show service status
         run: |
           SERVICE_NAME="${{ github.event.inputs.service_name }}"
-          aws lightsail get-container-services --service-name "${SERVICE_NAME}" --output table
+          aws lightsail get-container-service --service-name "${SERVICE_NAME}" --output table --region "${AWS_REGION}"
