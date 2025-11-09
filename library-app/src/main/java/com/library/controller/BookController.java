@@ -36,7 +36,7 @@ public class BookController {
                 .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
 
-    @PatchMapping("/{id}")
+    @PatchMapping(value = "/{id}", consumes = "application/json")
     public ResponseEntity<Book> updateBook(@PathVariable Long id, @RequestBody Book bookDetails) {
         Optional<Book> optionalBook = bookService.getBookById(id);
         if (optionalBook.isPresent()) {
