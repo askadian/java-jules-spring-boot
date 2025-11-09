@@ -1,0 +1,6 @@
+# actionlint artifacts
+LICENSE.txt
+docs/
+man/
+actionlint
+actionlint_*.tar.gz
