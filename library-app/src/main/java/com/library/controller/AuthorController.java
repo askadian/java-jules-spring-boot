@@ -36,7 +36,7 @@ public class AuthorController {
                 .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
 
-    @PatchMapping(value = "/{id}", consumes = "application/json")
+    @PatchMapping("/{id}")
     public ResponseEntity<Author> updateAuthor(@PathVariable Long id, @RequestBody Author authorDetails) {
         Optional<Author> optionalAuthor = authorService.getAuthorById(id);
         if (optionalAuthor.isPresent()) {

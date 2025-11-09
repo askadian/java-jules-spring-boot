@@ -36,7 +36,7 @@ public class OrderStatusTypeController {
                 .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
 
-    @PatchMapping(value = "/{name}", consumes = "application/json")
+    @PatchMapping(value = "/{name}")
     public ResponseEntity<OrderStatusType> updateOrderStatusType(@PathVariable String name, @RequestBody OrderStatusType orderStatusTypeDetails) {
         Optional<OrderStatusType> optionalOrderStatusType = orderStatusTypeService.getOrderStatusTypeByName(name);
         if (optionalOrderStatusType.isPresent()) {

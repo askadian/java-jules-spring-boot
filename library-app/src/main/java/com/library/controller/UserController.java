@@ -36,7 +36,7 @@ public class UserController {
                 .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
 
-    @PatchMapping(value = "/{id}", consumes = "application/json")
+    @PatchMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User userDetails) {
         Optional<User> optionalUser = userService.getUserById(id);
         if (optionalUser.isPresent()) {
