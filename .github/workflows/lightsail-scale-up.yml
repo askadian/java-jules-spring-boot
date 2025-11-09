@@ -1,0 +1,40 @@
+name: Lightsail Scale Up
+on:
+  workflow_dispatch:
+    inputs:
+      service_name:
+        description: 'Lightsail container service name'
+        required: true
+        default: 'library-container-service'
+      amount:
+        description: 'How many instances to add (positive integer)'
+        required: true
+        default: '1'
+
+jobs:
+  scale_up:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Increase scale
+        run: |
+          set -e
+          SERVICE="${{ github.event.inputs.service_name }}"
+          AMOUNT="${{ github.event.inputs.amount }}"
+          CURRENT=$(aws lightsail get-container-services --service-name "${SERVICE}" --query "containerServices[0].scale" --output text)
+          if [ -z "$CURRENT" ] || [ "$CURRENT" = "None" ]; then
+            echo "Could not detect current scale; defaulting to 0"
+            CURRENT=0
+          fi
+          NEW=$((CURRENT + AMOUNT))
+          echo "Scaling ${SERVICE} from ${CURRENT} -> ${NEW}"
+          aws lightsail update-container-service --service-name "${SERVICE}" --scale "${NEW}"
+          aws lightsail get-container-services --service-name "${SERVICE}" --output table
