@@ -1,0 +1,35 @@
+name: Lightsail Stop
+on:
+  workflow_dispatch:
+    inputs:
+      service_name:
+        description: 'Lightsail container service name'
+        required: true
+        default: 'library-container-service'
+      desired_scale:
+        description: 'Scale to set when stopping (use 0 to stop)'
+        required: true
+        default: '0'
+
+jobs:
+  stop:
+    runs-on: ubuntu-latest
+    permissions: {}
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Set scale to stop service
+        run: |
+          set -e
+          SERVICE="${{ github.event.inputs.service_name }}"
+          SCALE="${{ github.event.inputs.desired_scale }}"
+          echo "Updating service ${SERVICE} scale -> ${SCALE}"
+          aws lightsail update-container-service --service-name "${SERVICE}" --scale "${SCALE}"
+          aws lightsail get-container-services --service-name "${SERVICE}" --output table
