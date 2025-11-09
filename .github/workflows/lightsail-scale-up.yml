@@ -14,6 +14,7 @@ on:
 jobs:
   scale_up:
     runs-on: ubuntu-latest
+    permissions: {}
     env:
       AWS_REGION: ${{ secrets.AWS_REGION }}
     steps:
