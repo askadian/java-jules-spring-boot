@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -20,6 +21,12 @@ public class BookController {
     public ResponseEntity<Book> createBook(@RequestBody Book book) {
         Book savedBook = bookService.saveBook(book);
         return new ResponseEntity<>(savedBook, HttpStatus.CREATED);
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Book>> getAllBooks() {
+        List<Book> books = bookService.getAllBooks();
+        return new ResponseEntity<>(books, HttpStatus.OK);
     }
 
     @GetMapping("/{id}")
@@ -37,14 +44,14 @@ public class BookController {
             if (bookDetails.getTitle() != null) {
                 existingBook.setTitle(bookDetails.getTitle());
             }
-            if (bookDetails.getAuthor() != null) {
-                existingBook.setAuthor(bookDetails.getAuthor());
-            }
             if (bookDetails.getIsbn() != null) {
                 existingBook.setIsbn(bookDetails.getIsbn());
             }
             if (bookDetails.getPublishedDate() != null) {
                 existingBook.setPublishedDate(bookDetails.getPublishedDate());
+            }
+            if (bookDetails.getAuthors() != null) {
+                existingBook.setAuthors(bookDetails.getAuthors());
             }
             Book updatedBook = bookService.saveBook(existingBook);
             return new ResponseEntity<>(updatedBook, HttpStatus.OK);
