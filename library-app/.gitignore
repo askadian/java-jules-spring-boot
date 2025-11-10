@@ -1,4 +1,6 @@
+# Compiled class files
 target/
+
+# IDE specific files
 .idea/
 *.iml
-src/main/resources/application.properties
