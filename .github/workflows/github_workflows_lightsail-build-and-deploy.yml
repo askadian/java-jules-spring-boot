@@ -1,0 +1,245 @@
+# Build Docker image, push to ECR, and deploy to Lightsail container service.
+# Manual run (workflow_dispatch).
+#
+# Required repo secrets:
+# - AWS_ACCESS_KEY_ID
+# - AWS_SECRET_ACCESS_KEY
+# - AWS_REGION (e.g. us-east-1)
+# - MYSQL_PASSWORD
+#
+# Notes:
+# - This workflow builds the image from the repository root (uses library-app/Dockerfile).
+# - It creates the ECR repo if missing, tags the image <account>.dkr.ecr.<region>.amazonaws.com/<ecr_repo>:<image_tag>
+# - After push, it creates containers.json and public-endpoint.json and calls aws lightsail create-container-service-deployment.
+# - Be sure the IAM credentials in the repo secrets have ECR push permissions and Lightsail permissions.
+
+name: Lightsail Build and Deploy
+on:
+  workflow_dispatch:
+    inputs:
+      service_name:
+        description: 'Lightsail container service name'
+        required: true
+        default: 'library-container-service'
+      container_name:
+        description: 'Container name inside the service'
+        required: true
+        default: 'library-container'
+      ecr_repo:
+        description: 'ECR repository name to push image into'
+        required: true
+        default: 'library-app-ecr-repo1'
+      image_tag:
+        description: 'Image tag to use'
+        required: true
+        default: 'latest'
+      scale:
+        description: 'Desired scale (number of container instances)'
+        required: true
+        default: '1'
+      power:
+        description: 'Container power (e.g. micro, small, medium, large)'
+        required: true
+        default: 'small'
+      mysql_endpoint:
+        description: 'MySQL endpoint (host only)'
+        required: true
+        default: 'ls-96b3fefee02576ef84032d9f27bacc50d3b646b4.cp8ouu8wuroj.us-east-1.rds.amazonaws.com'
+      mysql_port:
+        description: 'MySQL port'
+        required: true
+        default: '3306'
+      mysql_user:
+        description: 'MySQL username'
+        required: true
+        default: 'dbmasteruser'
+      health_path:
+        description: 'Health check path'
+        required: true
+        default: '/'
+      health_success_codes:
+        description: 'Health check success codes'
+        required: true
+        default: '200-499'
+      health_interval:
+        description: 'Health check interval seconds'
+        required: true
+        default: '5'
+      health_timeout:
+        description: 'Health check timeout seconds'
+        required: true
+        default: '2'
+      health_healthy_threshold:
+        description: 'Health check healthy threshold'
+        required: true
+        default: '2'
+      health_unhealthy_threshold:
+        description: 'Health check unhealthy threshold'
+        required: true
+        default: '2'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Prepare environment variables
+        # Move all GH expressions into env so run body is plain shell
+        env:
+          SERVICE_NAME: ${{ github.event.inputs.service_name }}
+          CONTAINER_NAME: ${{ github.event.inputs.container_name }}
+          ECR_REPO: ${{ github.event.inputs.ecr_repo }}
+          IMAGE_TAG: ${{ github.event.inputs.image_tag }}
+          SCALE: ${{ github.event.inputs.scale }}
+          POWER: ${{ github.event.inputs.power }}
+          MYSQL_ENDPOINT: ${{ github.event.inputs.mysql_endpoint }}
+          MYSQL_PORT: ${{ github.event.inputs.mysql_port }}
+          MYSQL_USER: ${{ github.event.inputs.mysql_user }}
+          MYSQL_PASS: ${{ secrets.MYSQL_PASSWORD }}
+          HEALTH_PATH: ${{ github.event.inputs.health_path }}
+          HEALTH_SUCCESS_CODES: ${{ github.event.inputs.health_success_codes }}
+          HEALTH_INTERVAL: ${{ github.event.inputs.health_interval }}
+          HEALTH_TIMEOUT: ${{ github.event.inputs.health_timeout }}
+          HEALTH_HEALTHY_THRESHOLD: ${{ github.event.inputs.health_healthy_threshold }}
+          HEALTH_UNHEALTHY_THRESHOLD: ${{ github.event.inputs.health_unhealthy_threshold }}
+        run: |
+          echo "Prepared environment variables (not printing secrets)."
+
+      - name: Discover AWS account ID
+        id: account
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          echo "account_id=${ACCOUNT_ID}" >> $GITHUB_OUTPUT
+
+      - name: Ensure ECR repository exists
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID=${{ steps.account.outputs.account_id }}
+          REGION="${AWS_REGION}"
+          REPO_NAME="${ECR_REPO}"
+          # If repo exists describe-repositories will succeed, otherwise create it
+          if aws ecr describe-repositories --repository-names "${REPO_NAME}" --region "${REGION}" >/dev/null 2>&1; then
+            echo "ECR repo ${REPO_NAME} already exists."
+          else
+            echo "Creating ECR repository ${REPO_NAME} in ${REGION}..."
+            aws ecr create-repository --repository-name "${REPO_NAME}" --region "${REGION}" >/dev/null
+            echo "Created."
+          fi
+          REPO_URI=$(aws ecr describe-repositories --repository-names "${REPO_NAME}" --region "${REGION}" --query "repositories[0].repositoryUri" --output text)
+          echo "repo_uri=${REPO_URI}" >> $GITHUB_OUTPUT
+
+      - name: Login to ECR
+        run: |
+          set -euo pipefail
+          REGION="${AWS_REGION}"
+          ACCOUNT_ID=${{ steps.account.outputs.account_id }}
+          aws ecr get-login-password --region "${REGION}" | docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
+          echo "Logged in to ECR."
+
+      - name: Build Docker image
+        run: |
+          set -euo pipefail
+          REPO_URI=${{ steps.prepare-env.outputs.REPO_URI || '' }} || true
+          ACCOUNT_ID=${{ steps.account.outputs.account_id }}
+          REGION="${AWS_REGION}"
+          REPO_NAME="${ECR_REPO}"
+          IMAGE_TAG="${IMAGE_TAG}"
+          TARGET_IMAGE="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
+          echo "Building Docker image ${TARGET_IMAGE} (this may take a while)..."
+          # Build from repository root; Dockerfile at library-app/Dockerfile
+          docker build -t "${TARGET_IMAGE}" -f library-app/Dockerfile .
+          docker push "${TARGET_IMAGE}"
+          echo "Pushed ${TARGET_IMAGE}"
+          echo "image_uri=${TARGET_IMAGE}" >> $GITHUB_OUTPUT
+
+      - name: Generate containers.json and public-endpoint.json
+        run: |
+          set -euo pipefail
+          ACCOUNT_ID=${{ steps.account.outputs.account_id }}
+          REGION="${AWS_REGION}"
+          REPO_NAME="${ECR_REPO}"
+          IMAGE_TAG="${IMAGE_TAG}"
+          IMAGE_URI="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
+          CONTAINER_NAME="${CONTAINER_NAME}"
+          MYSQL_ENDPOINT="${MYSQL_ENDPOINT}"
+          MYSQL_PORT="${MYSQL_PORT}"
+          MYSQL_USER="${MYSQL_USER}"
+          MYSQL_PASS="${MYSQL_PASS}"
+          HEALTH_PATH="${HEALTH_PATH}"
+          HEALTH_SUCCESS_CODES="${HEALTH_SUCCESS_CODES}"
+          HEALTH_INTERVAL="${HEALTH_INTERVAL}"
+          HEALTH_TIMEOUT="${HEALTH_TIMEOUT}"
+          HEALTH_HEALTHY_THRESHOLD="${HEALTH_HEALTHY_THRESHOLD}"
+          HEALTH_UNHEALTHY_THRESHOLD="${HEALTH_UNHEALTHY_THRESHOLD}"
+
+          # Create containers.json
+          cat > containers.json <<EOF
+{
+  "${CONTAINER_NAME}": {
+    "image": "${IMAGE_URI}",
+    "environment": {
+      "JDBC_DATABASE_URL": "jdbc:mysql://${MYSQL_ENDPOINT}:${MYSQL_PORT}/library?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC",
+      "JDBC_DATABASE_USERNAME": "${MYSQL_USER}",
+      "JDBC_DATABASE_PASSWORD": "${MYSQL_PASS}"
+    }
+  }
+}
+EOF
+
+          # Create public-endpoint.json
+          cat > public-endpoint.json <<EOF
+{
+  "containerName": "${CONTAINER_NAME}",
+  "containerPort": 80,
+  "healthCheck": {
+    "path": "${HEALTH_PATH}",
+    "successCodes": "${HEALTH_SUCCESS_CODES}",
+    "intervalSeconds": ${HEALTH_INTERVAL},
+    "timeoutSeconds": ${HEALTH_TIMEOUT},
+    "healthyThreshold": ${HEALTH_HEALTHY_THRESHOLD},
+    "unhealthyThreshold": ${HEALTH_UNHEALTHY_THRESHOLD}
+  }
+}
+EOF
+          echo "Generated containers.json and public-endpoint.json (password included only in containers.json)."
+
+      - name: Create service if missing and deploy to Lightsail
+        run: |
+          set -euo pipefail
+          SERVICE_NAME="${SERVICE_NAME}"
+          REGION="${AWS_REGION}"
+          # Check if service exists
+          if aws lightsail get-container-service --service-name "${SERVICE_NAME}" --region "${REGION}" >/dev/null 2>&1; then
+            echo "Service ${SERVICE_NAME} exists. Updating deployment..."
+          else
+            echo "Service ${SERVICE_NAME} not found. Creating (power=${POWER}, scale=${SCALE})..."
+            aws lightsail create-container-service --service-name "${SERVICE_NAME}" --power "${POWER}" --scale "${SCALE}" --region "${REGION}"
+            # brief wait
+            sleep 10
+          fi
+
+          echo "Creating container service deployment..."
+          aws lightsail create-container-service-deployment \
+            --service-name "${SERVICE_NAME}" \
+            --containers file://containers.json \
+            --public-endpoint file://public-endpoint.json \
+            --region "${REGION}"
+
+      - name: Show service status
+        run: |
+          set -euo pipefail
+          SERVICE_NAME="${SERVICE_NAME}"
+          REGION="${AWS_REGION}"
+          aws lightsail get-container-service --service-name "${SERVICE_NAME}" --output table --region "${REGION}"
