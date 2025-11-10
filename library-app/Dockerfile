@@ -3,10 +3,13 @@ FROM maven:3.9.6-amazoncorretto-21 AS builder
 WORKDIR /app
 COPY pom.xml .
 COPY src ./src
-RUN mvn clean package && rm -rf target/surefire-reports && rm -rf target/maven-archiver && rm -rf target/classes
+RUN mvn clean package -DskipTests && \
+    rm -rf /root/.m2 && \
+    find target -type d -name "surefire-reports" -exec rm -rf {} +
 
 # Stage 2: Create the final, production-ready image
-FROM amazoncorretto:21
+#FROM amazoncorretto:21
+FROM maven:3.9.6-amazoncorretto-21-slim AS builder
 WORKDIR /app
 COPY --from=builder /app/target/*.jar ./app.jar
 ENTRYPOINT ["java", "-jar", "app.jar"]
