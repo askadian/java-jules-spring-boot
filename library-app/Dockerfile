@@ -1,6 +1,6 @@
 # Use an official Amazon Corretto runtime as a parent image
 #FROM amazoncorretto:11-alpine-jdk
-
+FROM openjdk:21-jdk-slim
 # Set the working directory in the container
 #WORKDIR /app
 
@@ -12,7 +12,7 @@
 
 # Command to run the application
 #ENTRYPOINT ["java","-jar","app.jar"]
-FROM openjdk:17-jdk-slim
+#FROM openjdk:17-jdk-slim
 VOLUME /tmp
 ARG JAR_FILE=target/*.jar
 COPY ${JAR_FILE} app.jar
