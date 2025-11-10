@@ -1,20 +1,13 @@
-# Use an official Amazon Corretto runtime as a parent image
-#FROM amazoncorretto:11-alpine-jdk
-FROM openjdk:21-jdk-slim
-# Set the working directory in the container
-#WORKDIR /app
+# Stage 1: Build the application using Maven
+FROM maven:3.9.6-amazoncorretto-21 AS builder
+WORKDIR /app
+COPY pom.xml .
+COPY src ./src
+RUN mvn clean package
 
-# Copy the executable JAR file from the host to the container
-#COPY library-app/target/library-app-1.0-SNAPSHOT.jar app.jar
-
-# Expose the port the app runs on
-#EXPOSE 8080
-
-# Command to run the application
-#ENTRYPOINT ["java","-jar","app.jar"]
-#FROM openjdk:17-jdk-slim
-VOLUME /tmp
-ARG JAR_FILE=target/*.jar
-COPY ${JAR_FILE} app.jar
-ENTRYPOINT ["java","-jar","/app.jar"]
+# Stage 2: Create the final, production-ready image
+FROM amazoncorretto:21
+WORKDIR /app
+COPY --from=builder /app/target/*.jar ./app.jar
+ENTRYPOINT ["java", "-jar", "app.jar"]
 EXPOSE 8080
