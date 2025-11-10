@@ -16,12 +16,12 @@ INSERT INTO author_book_relationship (book_id, author_id, last_updated_by) VALUE
 INSERT INTO author_book_relationship (book_id, author_id, last_updated_by) VALUES (3, 3, 'admin');
 
 -- Insert Libraries
-INSERT INTO library (library_name, address_line1, city, state, zip, country, last_updated_by) VALUES ('Main Library', '123 Main St', 'Anytown', 'CA', '12345', 'USA', 'admin');
+INSERT INTO library_branch (library_name, address_line1, city, state, zip, country, last_updated_by) VALUES ('Main Library', '123 Main St', 'Anytown', 'CA', '12345', 'USA', 'admin');
 
 -- Insert Library Book Collections
-INSERT INTO library_book_collection (library_id, book_id, seq_number, last_updated_by) VALUES (1, 1, 1, 'admin');
-INSERT INTO library_book_collection (library_id, book_id, seq_number, last_updated_by) VALUES (1, 2, 2, 'admin');
-INSERT INTO library_book_collection (library_id, book_id, seq_number, last_updated_by) VALUES (1, 3, 3, 'admin');
+INSERT INTO library_book_collection (library_branch_id, book_id, seq_number, last_updated_by) VALUES (1, 1, 1, 'admin');
+INSERT INTO library_book_collection (library_branch_id, book_id, seq_number, last_updated_by) VALUES (1, 2, 2, 'admin');
+INSERT INTO library_book_collection (library_branch_id, book_id, seq_number, last_updated_by) VALUES (1, 3, 3, 'admin');
 
 -- Insert Users
 INSERT INTO user (first_name, last_name, address_line1, city, state, zip, country) VALUES ('John', 'Doe', '456 Oak Ave', 'Anytown', 'CA', '12345', 'USA');

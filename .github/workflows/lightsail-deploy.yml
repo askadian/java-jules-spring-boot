@@ -1,0 +1,159 @@
+name: Lightsail Deploy
+on:
+  workflow_dispatch:
+    inputs:
+      service_name:
+        description: 'Lightsail container service name'
+        required: true
+        default: 'library-container-service'
+      container_name:
+        description: 'Container name inside the service'
+        required: true
+        default: 'library-container'
+      image:
+        description: 'Container image (full ref)'
+        required: true
+        default: 'public.ecr.aws/amazonlightsail/hello-world:latest'
+      scale:
+        description: 'Desired scale (number of container instances)'
+        required: true
+        default: '1'
+      power:
+        description: 'Container power (e.g. micro, small, medium, large)'
+        required: true
+        default: 'small'
+      mysql_endpoint:
+        description: 'MySQL endpoint (host only)'
+        required: true
+        default: 'ls-96b3fefee02576ef84032d9f27bacc50d3b646b4.cp8ouu8wuroj.us-east-1.rds.amazonaws.com'
+      mysql_port:
+        description: 'MySQL port'
+        required: true
+        default: '3306'
+      mysql_user:
+        description: 'MySQL username'
+        required: true
+        default: 'dbmasteruser'
+      health_path:
+        description: 'Health check path'
+        required: true
+        default: '/'
+      health_success_codes:
+        description: 'Health check success codes'
+        required: true
+        default: '200-499'
+      health_interval:
+        description: 'Health check interval seconds'
+        required: true
+        default: '5'
+      health_timeout:
+        description: 'Health check timeout seconds'
+        required: true
+        default: '2'
+      health_healthy_threshold:
+        description: 'Health check healthy threshold'
+        required: true
+        default: '2'
+      health_unhealthy_threshold:
+        description: 'Health check unhealthy threshold'
+        required: true
+        default: '2'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Build containers.json and public-endpoint.json
+        # Set the variables into the step environment so ${{ }} expressions are not embedded in the run body
+        env:
+          SERVICE_NAME: ${{ github.event.inputs.service_name }}
+          CONTAINER_NAME: ${{ github.event.inputs.container_name }}
+          IMAGE: ${{ github.event.inputs.image }}
+          SCALE: ${{ github.event.inputs.scale }}
+          POWER: ${{ github.event.inputs.power }}
+          MYSQL_ENDPOINT: ${{ github.event.inputs.mysql_endpoint }}
+          MYSQL_PORT: ${{ github.event.inputs.mysql_port }}
+          MYSQL_USER: ${{ github.event.inputs.mysql_user }}
+          MYSQL_PASS: ${{ secrets.MYSQL_PASSWORD }}
+          HEALTH_PATH: ${{ github.event.inputs.health_path }}
+          HEALTH_SUCCESS_CODES: ${{ github.event.inputs.health_success_codes }}
+          HEALTH_INTERVAL: ${{ github.event.inputs.health_interval }}
+          HEALTH_TIMEOUT: ${{ github.event.inputs.health_timeout }}
+          HEALTH_HEALTHY_THRESHOLD: ${{ github.event.inputs.health_healthy_threshold }}
+          HEALTH_UNHEALTHY_THRESHOLD: ${{ github.event.inputs.health_unhealthy_threshold }}
+        run: |
+          set -euo pipefail
+
+          # Use a small Python snippet to generate safe JSON files (avoids quoting issues)
+          python3 - <<'PY'
+import os, json
+
+cn = os.environ['CONTAINER_NAME']
+containers = {
+  cn: {
+    "image": os.environ['IMAGE'],
+    "environment": {
+      "JDBC_DATABASE_URL": f"jdbc:mysql://{os.environ['MYSQL_ENDPOINT']}:{os.environ['MYSQL_PORT']}/library?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC",
+      "JDBC_DATABASE_USERNAME": os.environ['MYSQL_USER'],
+      "JDBC_DATABASE_PASSWORD": os.environ['MYSQL_PASS']
+    }
+  }
+}
+
+with open('containers.json', 'w') as f:
+    json.dump(containers, f, indent=2)
+
+public_endpoint = {
+  "containerName": os.environ['CONTAINER_NAME'],
+  "containerPort": 80,
+  "healthCheck": {
+    "path": os.environ['HEALTH_PATH'],
+    "successCodes": os.environ['HEALTH_SUCCESS_CODES'],
+    "intervalSeconds": int(os.environ['HEALTH_INTERVAL']),
+    "timeoutSeconds": int(os.environ['HEALTH_TIMEOUT']),
+    "healthyThreshold": int(os.environ['HEALTH_HEALTHY_THRESHOLD']),
+    "unhealthyThreshold": int(os.environ['HEALTH_UNHEALTHY_THRESHOLD'])
+  }
+}
+
+with open('public-endpoint.json', 'w') as f:
+    json.dump(public_endpoint, f, indent=2)
+PY
+
+      - name: Create service if missing and deploy
+        run: |
+          set -euo pipefail
+          SERVICE_NAME="${{ github.event.inputs.service_name }}"
+          # Use the singular get-container-service call to check existence (more reliable)
+          if aws lightsail get-container-service --service-name "${SERVICE_NAME}" --region "${AWS_REGION}" > /dev/null 2>&1; then
+            echo "Service ${SERVICE_NAME} already exists"
+          else
+            echo "Service ${SERVICE_NAME} doesn't exist. Creating (power=${{ github.event.inputs.power }}, scale=${{ github.event.inputs.scale }})"
+            aws lightsail create-container-service --service-name "${SERVICE_NAME}" --power "${{ github.event.inputs.power }}" --scale "${{ github.event.inputs.scale }}" --region "${AWS_REGION}"
+            # brief wait for propagation
+            sleep 10
+          fi
+
+          echo "Creating deployment..."
+          aws lightsail create-container-service-deployment \
+            --service-name "${SERVICE_NAME}" \
+            --containers file://containers.json \
+            --public-endpoint file://public-endpoint.json \
+            --region "${AWS_REGION}"
+
+      - name: Show service status
+        run: |
+          SERVICE_NAME="${{ github.event.inputs.service_name }}"
+          aws lightsail get-container-service --service-name "${SERVICE_NAME}" --output table --region "${AWS_REGION}"
